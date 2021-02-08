@@ -1,13 +1,12 @@
 from rest_framework.response import Response
-from .models import PumpState, Pump, Petrol, ErrorType, Error, Order, \
-    OrderOther, OrderPetrol
+from .models import PumpState, Pump, Petrol, ErrorType, Error, Order
 from .serializers import PumpStateSerializer, PetrolSerializer, \
     ErrorTypeSerializer, DateTimeTerminalSerializer, OrderOtherSerializer, \
     OrderPetrolSerializer, ScanSerializer
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import status
-from .serializers import countCash
+from .serializers import countCash, isActivated
 
 
 ONLINE = True   #Заглушка для доступа к сети
@@ -158,11 +157,7 @@ class ScanView(APIView):
             order = findBarCode(result.barCode)
             if order is None:
                 return Response(status=status.HTTP_404_NOT_FOUND)
-            if order.orderType == 'OTHER':
-                change = OrderOther.objects.get(orderId=order).change
-            elif order.orderType == 'PETROL':
-                change = OrderPetrol.objects.get(orderId=order).change
-            if change is None:
+            if isActivated(order):
                 return Response("This scan has already activated!", status=status.HTTP_403_FORBIDDEN)
             amount = countCash(order, 0)
             return Response({'fromId': order.id, 'amount': amount})

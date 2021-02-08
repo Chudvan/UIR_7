@@ -88,6 +88,16 @@ def findOrder(pk):
         return
 
 
+def isActivated(order):
+    if order.orderType == 'OTHER':
+        change = OrderOther.objects.get(orderId=order).change
+    elif order.orderType == 'PETROL':
+        change = OrderPetrol.objects.get(orderId=order).change
+    if change is not None:
+        return True
+    return False
+
+
 def countCash(order, amount):
     if order.orderType == 'OTHER':
         lastCash = OrderOther.objects.get(orderId=order).cash
@@ -112,46 +122,53 @@ class OrderOtherSerializer(serializers.Serializer):
         terminal = findTerminal(validated_data['terminalNumber'])
         if terminal is None:
             return Response("Terminal doesn't exist!", status=status.HTTP_400_BAD_REQUEST)
-        barcode = buildblock(BARCODE_LEN)
-        while not isUniqueBarcode(barcode):
+        fromId = findOrder(validated_data['fromId'])
+        if fromId is None:
+            return Response("Order fromId doesn't exist!", status=status.HTTP_400_BAD_REQUEST)
+        if isActivated(fromId):
+            return Response("This scan has already activated!", status=status.HTTP_403_FORBIDDEN)
+        serializer = OtherTypeSerializer(data={"otherType": validated_data['otherType']})
+        if serializer.is_valid(raise_exception=True):
+            #print("\n\n\n\nHERE\n\n\n\n")
+            otherType = OtherType.objects.get(otherType=validated_data['otherType'])
+            #print("\n\n\n\nHERE2\n\n\n\n")
+
             barcode = buildblock(BARCODE_LEN)
-        try:
-            orderId = Order(orderId=validated_data['id'],
-                  terminalNumber=terminal,
-                  dateTime=validated_data['dateTime'],
-                  orderType='OTHER',
-                  barCode=barcode)
-            orderId.save()
-            #print(orderId)
-        except IntegrityError:
-            #print(validated_data['id'], terminal, validated_data['dateTime'], barcode)
-            return Response("Order still exists!", status=status.HTTP_400_BAD_REQUEST)
-        else:
-            fromId = findOrder(validated_data['fromId'])
-            if fromId is None:
-                return Response("Order fromId doesn't exist!", status=status.HTTP_400_BAD_REQUEST)
-            serializer = OtherTypeSerializer(data={"otherType": validated_data['otherType']})
-            if serializer.is_valid(raise_exception=True):
-                #print("\n\n\n\nHERE\n\n\n\n")
-                otherType = OtherType.objects.get(otherType=validated_data['otherType'])
-                #print("\n\n\n\nHERE2\n\n\n\n")
-                cash = countCash(fromId, validated_data['amount'])
-                #print("\n\n\n\nHERE3\n\n\n\n")
+            while not isUniqueBarcode(barcode):
+                barcode = buildblock(BARCODE_LEN)
+            try:
+                orderId = Order(orderId=validated_data['id'],
+                                terminalNumber=terminal,
+                                dateTime=validated_data['dateTime'],
+                                orderType='OTHER',
+                                barCode=barcode)
+                orderId.save()
+                # print(orderId)
+            except IntegrityError:
+                # print(validated_data['id'], terminal, validated_data['dateTime'], barcode)
+                return Response("Order still exists!", status=status.HTTP_400_BAD_REQUEST)
+
+            cash = countCash(fromId, validated_data['amount'])
+            #print("\n\n\n\nHERE3\n\n\n\n")
+            try:
                 orderOther = OrderOther.objects.create(orderId=orderId,
                                                  fromId=fromId,
                                                  number=validated_data['number'],
                                                  amount=validated_data['amount'],
                                                  otherType=otherType,
                                                  cash=cash)
-                if fromId.orderType == 'OTHER':
-                    previous = OrderOther.objects.get(orderId=fromId)
-                    previous.change = orderOther
-                    previous.save()
-                elif fromId.orderType == 'PETROL':
-                    previous = OrderPetrol.objects.get(orderId=fromId)
-                    previous.change = orderOther
-                    previous.save()
-                return orderOther
+            except IntegrityError:
+                #LOGGING
+                return Response("Failed to create OrderOther!", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if fromId.orderType == 'OTHER':
+                previous = OrderOther.objects.get(orderId=fromId)
+                previous.change = orderOther
+                previous.save()
+            elif fromId.orderType == 'PETROL':
+                previous = OrderPetrol.objects.get(orderId=fromId)
+                previous.change = orderOther
+                previous.save()
+            return orderOther
 
 
 class CustomerDetailSerializer(serializers.ModelSerializer):
