@@ -1,12 +1,11 @@
 from rest_framework.response import Response
-from .models import PumpState, Pump, Petrol, ErrorType, Error, Order
-from .serializers import PumpStateSerializer, PetrolSerializer, \
-    ErrorTypeSerializer, DateTimeTerminalSerializer, OrderOtherSerializer, \
-    OrderPetrolSerializer, ScanSerializer
+from .models import ErrorType, Error, Order
+from .serializers import ErrorTypeSerializer, DateTimeTerminalSerializer, \
+    OrderOtherSerializer, OrderPetrolSerializer, ScanSerializer
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import status
-from .serializers import countCash, isActivated
+from .serializers import countCash, isActivated, getPumpStates, getPetrols
 
 
 ONLINE = True   #Заглушка для доступа к сети
@@ -16,21 +15,11 @@ ONLINE = True   #Заглушка для доступа к сети
 def api_pumps(request):
 
     if request.method == 'GET':
-        pumps = []
-        listDictPumps = list(PumpState.objects.all().values('number').distinct())
-        #print('\n\n\n', listDictPumps, '\n\n\n')
-        for dictPump in listDictPumps:
-            pkPump = dictPump['number']
-            #print(type(numberPump))
-            pumpObject = Pump.objects.all().get(pk=pkPump)
-            pumpStateObjects = PumpState.objects.all().filter(number=pumpObject)
-            pumpState = pumpStateObjects.order_by('-datetime')[0]
-            serializer = PumpStateSerializer(pumpState)
-            pumps.append(serializer.data)
         #serializer = PumpStateSerializer(pumps, many=True)
         if ONLINE:
+            pumpStates = getPumpStates()
             #return Response(serializer.data)
-            return Response(pumps)
+            return Response(pumpStates)
         else:
             return Response(None, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -39,15 +28,8 @@ def api_pumps(request):
 def api_petrols(request):
 
     if request.method == 'GET':
-        petrols = []
-        listDictPetrols = list(Petrol.objects.all().values('petrolType').distinct())
-        for dictPetrol in listDictPetrols:
-            petrolType = dictPetrol['petrolType']
-            petrolObjects = Petrol.objects.all().filter(petrolType=petrolType)
-            petrol = petrolObjects.order_by('-datetime')[0]
-            serializer = PetrolSerializer(petrol)
-            petrols.append(serializer.data)
         if ONLINE:
+            petrols = getPetrols()
             return Response(petrols)
         else:
             return Response(None, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -72,7 +54,7 @@ class SessionView(APIView):
                     return Response("errorList - Обязательное поле.",
                                     status=status.HTTP_400_BAD_REQUEST)
                 is_list = isinstance(errorList, list)
-                if is_list:
+                if is_list and errorList:
                     for error in errorList:
                         serializer = ErrorTypeSerializer(data=error)
                         if serializer.is_valid(raise_exception=True):
@@ -91,7 +73,7 @@ class SessionView(APIView):
 
 
 class OrderOtherView(APIView):
-    def put(self, request):
+    def post(self, request):
         #print(request.data)
         if ONLINE:
             serializer = OrderOtherSerializer(data=request.data)
@@ -125,7 +107,7 @@ class OrderOtherView(APIView):
 
 
 class OrderPetrolView(APIView):
-    def put(self, request):
+    def post(self, request):
         #print(request.data)
         if ONLINE:
             serializer = OrderPetrolSerializer(data=request.data)
@@ -160,4 +142,7 @@ class ScanView(APIView):
             if isActivated(order):
                 return Response("This scan has already activated!", status=status.HTTP_403_FORBIDDEN)
             amount = countCash(order, 0)
+            if amount < 0:
+                return Response("This scan has negative amount!",
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             return Response({'fromId': order.id, 'amount': amount})
