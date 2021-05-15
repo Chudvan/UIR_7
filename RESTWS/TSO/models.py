@@ -80,16 +80,16 @@ class Order(models.Model):
 
 
 class CustomerDetail(models.Model):
-    telephone = models.CharField(verbose_name='Телефон', max_length=20)
-    email = models.CharField(verbose_name='email', max_length=50)
+    telephone = models.CharField(verbose_name='Телефон', max_length=20, null=True, blank=True)
+    email = models.CharField(verbose_name='email', max_length=50, null=True, blank=True)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['telephone', 'email'], name='uniqueCustomer')
-        ]
+    # class Meta:
+    #     constraints = [
+    #         models.UniqueConstraint(fields=['telephone', 'email'], name='uniqueCustomer')
+    #     ]
 
     def __str__(self):
-        return self.telephone + ' | ' + self.email
+        return str(self.telephone) + ' | ' + str(self.email)
 
 
 class PayType(models.Model):
@@ -115,7 +115,7 @@ class OrderOther(models.Model):
                                    on_delete=models.CASCADE, primary_key=True)
     fromId = models.OneToOneField(Order, verbose_name='Предыдущий заказ', related_name='order0',
                                   on_delete=models.PROTECT)
-    number = models.CharField(verbose_name='Телефон', max_length=20)
+    number = models.CharField(verbose_name='Номер', max_length=20)
     amount = models.FloatField(verbose_name='Снято')
     otherType = models.ForeignKey(OtherType, verbose_name='Тип услуги', on_delete=models.PROTECT)
     cash = models.FloatField(verbose_name='Остаток')
@@ -133,7 +133,9 @@ class OrderPetrol(models.Model):
     petrol = models.ForeignKey(Petrol, verbose_name='НП', on_delete=models.PROTECT)
     volume = models.FloatField(verbose_name='Объём')
     amount = models.FloatField(verbose_name='Заплачено')
-    customerDetails = models.ForeignKey(CustomerDetail, verbose_name='Персональные данные', on_delete=models.PROTECT)
+    #customerDetails = models.ForeignKey(CustomerDetail, verbose_name='Персональные данные', on_delete=models.PROTECT)
+    telephone = models.CharField(verbose_name='Телефон', max_length=30, null=True, blank=True)
+    email = models.CharField(verbose_name='e-mail', max_length=30, null=True, blank=True)
     payType = models.ForeignKey(PayType, verbose_name='Тип оплаты', on_delete=models.PROTECT)
     change = models.ForeignKey('OrderOther', verbose_name='Перевод сдачи',
                                null=True, blank=True, on_delete=models.PROTECT)

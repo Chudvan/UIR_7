@@ -4,7 +4,7 @@ from rest_framework import status
 from django.db import IntegrityError
 from .models import PumpState, Petrol, ErrorType, DateTimeTerminal, \
     Terminal, OtherType, Order, OrderOther, OrderPetrol, \
-    CustomerDetail, PayType, Pump, Scan
+    PayType, Pump, Scan, CustomerDetail
 import random
 import string
 import datetime
@@ -198,10 +198,14 @@ class OrderOtherSerializer(serializers.Serializer):
             return orderOther
 
 
-class CustomerDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomerDetail
-        fields = ('telephone', 'email')
+# class CustomerDetailSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = CustomerDetail
+#         fields = ('telephone', 'email')
+
+class CustomerDetailSerializer(serializers.Serializer):
+    telephone = serializers.CharField(allow_blank=True)
+    email = serializers.CharField(allow_blank=True)
 
 
 class PayTypeSerializer(serializers.Serializer):
@@ -258,12 +262,12 @@ def isActualPetrol(petrol):
     return dict(petrol) in getPetrols()
 
 
-def findCustomerDetail(telephone, email):
-    try:
-        customerDetail = CustomerDetail.objects.get(telephone=telephone, email=email)
-        return customerDetail
-    except CustomerDetail.DoesNotExist:
-        return
+# def findCustomerDetail(telephone, email):
+#     try:
+#         customerDetail = CustomerDetail.objects.get(telephone=telephone, email=email)
+#         return customerDetail
+#     except CustomerDetail.DoesNotExist:
+#         return
 
 
 def checkPumpState(validated_data):
@@ -293,15 +297,15 @@ def checkPetrol(validated_data):
     return petrol
 
 
-def getCustomerDetail(validated_data):
-    try:
-        customerDetail = CustomerDetail(telephone=validated_data['customerDetails']['telephone'],
-                                        email=validated_data['customerDetails']['email'])
-        customerDetail.save()
-    except IntegrityError:
-        customerDetail = findCustomerDetail(telephone=validated_data['customerDetails']['telephone'],
-                                            email=validated_data['customerDetails']['email'])
-        return customerDetail
+# def getCustomerDetail(validated_data):
+#     try:
+#         customerDetail = CustomerDetail(telephone=validated_data['customerDetails']['telephone'],
+#                                         email=validated_data['customerDetails']['email'])
+#         customerDetail.save()
+#     except IntegrityError:
+#         customerDetail = findCustomerDetail(telephone=validated_data['customerDetails']['telephone'],
+#                                             email=validated_data['customerDetails']['email'])
+#         return customerDetail
 
 
 def checkPayType(validated_data):
@@ -335,6 +339,8 @@ class OrderPetrolSerializer(serializers.Serializer):
     volume = serializers.FloatField()
     amount = serializers.FloatField()
     customerDetails = CustomerDetailSerializer()
+    # telephone = serializers.CharField()
+    # email = serializers.CharField()
     payType = serializers.CharField()
 
     def create(self, validated_data):
@@ -352,7 +358,7 @@ class OrderPetrolSerializer(serializers.Serializer):
         if type(petrol) == Response:
             return petrol
 
-        customerDetail = getCustomerDetail(validated_data)
+        # customerDetail = getCustomerDetail(validated_data)
 
         payType = checkPayType(validated_data)
 
@@ -362,12 +368,18 @@ class OrderPetrolSerializer(serializers.Serializer):
         if type(orderId) == Response:
             return orderId
 
+        # if type(validated_data['customerDetails']['telephone']) != str \
+        #         or type(validated_data['customerDetails']['email']) != str:
+        #     return Response("telephone and email must be str", status=status.HTTP_400_BAD_REQUEST)
+        print("validated_data['customerDetails']['telephone']", validated_data)
+
         orderPetrol = OrderPetrol.objects.create(orderId=orderId,
                                                  pump=pumpState,
                                                  petrol=petrol,
                                                  volume=validated_data['volume'],
                                                  amount=validated_data['amount'],
-                                                 customerDetails=customerDetail,
+                                                 telephone=validated_data['customerDetails']['telephone'],
+                                                 email=validated_data['customerDetails']['email'],
                                                  payType=payType)
 
         PumpState.objects.create(datetime=datetime.datetime.now(),

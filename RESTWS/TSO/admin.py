@@ -2,8 +2,8 @@ from django.contrib import admin
 
 from .models import Pump, PumpState, Petrol, \
     Terminal, ErrorType, Error, \
-    Order, CustomerDetail, PayType, OrderPetrol, \
-    OtherType, OrderOther, Scan
+    Order, PayType, OrderPetrol, \
+    OtherType, OrderOther, Scan, CustomerDetail
 
 
 class PumpAdmin(admin.ModelAdmin):
@@ -61,9 +61,9 @@ class PayTypeAdmin(admin.ModelAdmin):
 
 
 class OrderPetrolAdmin(admin.ModelAdmin):
-    list_display = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'customerDetails', 'payType', 'change')
-    list_display_links = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'customerDetails', 'payType', 'change')
-    search_fields = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'customerDetails', 'payType', 'change')
+    list_display = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'telephone','email', 'payType', 'change')
+    list_display_links = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'telephone','email', 'payType', 'change')
+    search_fields = ('orderId', 'pump', 'petrol', 'volume', 'amount', 'telephone','email', 'payType', 'change')
 
 
 class OtherTypeAdmin(admin.ModelAdmin):
